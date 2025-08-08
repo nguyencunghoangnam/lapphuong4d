@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mô phỏng lập phương 3D cắt qua 1D & 2D (v2.5 – + Ẩn/hiện nhãn w×h 2D)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg1:#0b1020; --bg2:#070b16;
+      --card:#0b1220; --muted:#94a3b8; --text:#e5e7eb;
+      --accent:#38bdf8; --accent2:#a78bfa; --line:#334155;
+      --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444;
+      --ring:#60a5fa55;
+      --radius:16px; --radius-sm:12px;
+      --shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,0.03);
+      --glass: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      --glass-strong: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;}
+    body{
+      margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
+      background:
+        radial-gradient(1200px 700px at 15% 10%, #0d1530 0%, #0b132b 40%, #090f22 70%, #070b16 100%),
+        radial-gradient(1100px 650px at 85% 90%, #0d1530 0%, #0b132b 40%, #090f22 70%, #070b16 100%);
+      background-attachment: fixed;
+    }
+
+    header{padding:24px 24px 10px;}
+    h1{font-size:24px; margin:0 0 8px; letter-spacing:0.2px}
+    .sub{color:var(--muted); font-size:13px}
+
+    .wrap{
+      display:grid; grid-template-columns: 380px 1fr; gap:16px; padding:16px; align-items:start;
+      max-width:1400px; margin:0 auto;
+    }
+    @media (max-width: 1000px){
+      .wrap{ grid-template-columns: 1fr; }
+      .right{ grid-template-rows: 400px auto; }
+    }
+
+    .panel{
+      background:var(--glass);
+      border:1px solid rgba(148,163,184,0.18);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      overflow:hidden;
+    }
+    .panel h2{
+      font-size:14px; letter-spacing:.2px; color:#cbd5e1; margin:0; padding:14px 14px 8px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .panel h2::before{ content:"🎛️"; opacity:.9; }
+    .controls{padding:10px 14px 14px; border-top:1px dashed rgba(148,163,184,0.15)}
+    .row{
+      display:grid; grid-template-columns: 150px 1fr 64px; gap:10px; align-items:center; margin:10px 0
+    }
+    .row label{font-size:12px; color:#cbd5e1}
+    .row span{
+      justify-self:end; min-width:64px; text-align:center; font-variant-numeric:tabular-nums;
+      font-weight:600; color:#cfe1ff; background:rgba(56,189,248,0.08);
+      border:1px solid rgba(56,189,248,0.25); border-radius:10px; padding:6px 8px;
+    }
+
+    input[type="range"]{width:100%; appearance:none; height:28px; background:transparent; cursor:pointer}
+    input[type="range"]::-webkit-slider-runnable-track{
+      height:6px; border-radius:999px; background:
+        linear-gradient(90deg, rgba(56,189,248,0.35), rgba(167,139,250,0.35));
+      box-shadow: inset 0 0 0 1px rgba(148,163,184,0.25);
+    }
+    input[type="range"]::-webkit-slider-thumb{
+      -webkit-appearance:none; appearance:none; width:18px; height:18px; margin-top:-6px; border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, #ffffff, #dbeafe 40%, #93c5fd 80%);
+      border:1px solid rgba(148,163,184,0.6); box-shadow:0 4px 12px rgba(0,0,0,.35);
+      transition: transform .12s ease, box-shadow .2s ease;
+    }
+    input[type="range"]:hover::-webkit-slider-thumb{ transform: scale(1.06); box-shadow:0 6px 14px rgba(0,0,0,.45); }
+    input[type="range"]::-moz-range-track{
+      height:6px; border-radius:999px; background:
+        linear-gradient(90deg, rgba(56,189,248,0.35), rgba(167,139,250,0.35));
+      box-shadow: inset 0 0 0 1px rgba(148,163,184,0.25);
+    }
+    input[type="range"]::-moz-range-thumb{
+      width:18px; height:18px; border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, #ffffff, #dbeafe 40%, #93c5fd 80%);
+      border:1px solid rgba(148,163,184,0.6); box-shadow:0 4px 12px rgba(0,0,0,.35);
+      transition: transform .12s ease, box-shadow .2s ease;
+    }
+    input[type="range"]:focus{ outline:none; }
+    input[type="range"]:focus-visible{ box-shadow:0 0 0 6px var(--ring); border-radius:12px; }
+
+    /* Toggle (switch) */
+    .switch{ position:relative; width:48px; height:26px; justify-self:start; }
+    .switch input{ display:none; }
+    .slider{
+      position:absolute; inset:0; background:linear-gradient(180deg, #0f172a, #0b1220);
+      border:1px solid rgba(148,163,184,0.35); border-radius:999px;
+      transition: all .2s ease; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .slider::before{
+      content:""; position:absolute; width:20px; height:20px; left:3px; top:3px; border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, #ffffff, #dbeafe 40%, #93c5fd 80%);
+      box-shadow:0 4px 12px rgba(0,0,0,.35); transition: transform .2s ease;
+    }
+    .switch input:checked + .slider{
+      border-color:rgba(56,189,248,0.8); background:linear-gradient(180deg, rgba(56,189,248,0.25), rgba(56,189,248,0.08));
+    }
+    .switch input:checked + .slider::before{ transform: translateX(22px); }
+
+    .btns{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap}
+    button{
+      appearance:none; border:1px solid rgba(148,163,184,0.25);
+      background:linear-gradient(180deg, #0f172a, #0b1220);
+      color:var(--text); padding:10px 12px; border-radius:12px; font-weight:700; cursor:pointer;
+      transition: transform .08s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+      box-shadow:0 6px 18px rgba(0,0,0,.25);
+    }
+    button:hover{ transform: translateY(-1px); box-shadow:0 10px 24px rgba(0,0,0,.35); }
+    button:active{ transform: translateY(0); }
+    button.primary{
+      border-color:rgba(56,189,248,0.55);
+      background:linear-gradient(180deg, rgba(56,189,248,0.22), rgba(56,189,248,0.06));
+      text-shadow:0 1px 0 rgba(0,0,0,.25);
+    }
+    button:disabled{opacity:.6; cursor:not-allowed}
+
+    .hint{font-size:12px; color:var(--muted); margin-top:10px; line-height:1.5}
+
+    .right{display:grid; grid-template-rows: 48% 52%; gap:16px}
+    .card{
+      position:relative; border-radius:var(--radius); overflow:hidden;
+      border:1px solid rgba(148,163,184,0.18);
+      background:var(--glass-strong);
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: transform .12s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .card:hover{ transform: translateY(-2px); box-shadow:0 16px 40px rgba(0,0,0,.45); border-color:rgba(148,163,184,0.28); }
+    .card .title{
+      position:absolute; top:10px; left:12px; font-size:13px; color:#cbd5e1;
+      background:rgba(2,6,23,0.55); padding:6px 10px; border-radius:999px;
+      border:1px solid rgba(148,163,184,0.18);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    canvas{display:block; width:100%; height:100%}
+
+    .readout{display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; padding:12px;}
+    .metric{
+      background:linear-gradient(180deg, rgba(56,189,248,0.07), rgba(56,189,248,0.03));
+      border:1px solid rgba(56,189,248,0.35); border-radius:12px; padding:10px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+    .metric .k{font-size:11px; color:#93c5fd}
+    .metric .v{font-size:20px; font-weight:800; font-variant-numeric: tabular-nums; letter-spacing:0.3px}
+
+    .ant-views{display:grid; grid-template-columns: 1fr 1fr; gap:16px; padding:12px}
+    .ant-card{
+      border:1px dashed rgba(148,163,184,0.25);
+      border-radius:12px; padding:12px;
+      background:linear-gradient(180deg, rgba(148,163,184,0.05), rgba(148,163,184,0.02));
+    }
+    .ant-card h3{margin:0 0 10px; font-size:13px; color:#cbd5e1}
+    .ant1d{height:80px; position:relative}
+    .line1d{
+      position:absolute; top:40px; left:10px; right:10px; height:2px;
+      background:linear-gradient(90deg, #334155, #4b5563);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+      border-radius:2px;
+    }
+    .seg{
+      position:absolute; top:36px; height:10px;
+      background:linear-gradient(90deg, #22c55e, #38bdf8);
+      border-radius:6px; box-shadow:0 0 12px rgba(56,189,248,0.45), 0 0 6px rgba(34,197,94,0.35);
+      transition: width .18s ease, left .18s ease;
+    }
+    .ant2d{height:220px; position:relative;}
+    .ant2d canvas{
+      background:linear-gradient(180deg, rgba(148,163,184,0.06), rgba(148,163,184,0.02));
+      border-radius:10px; border:1px solid rgba(148,163,184,0.25);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+
+    .footer{padding:12px 16px; color:var(--muted); font-size:12px; text-align:center}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🧊 Lập phương 3D qua thế giới 1D, 2D – Lập phương 4D</h1>
+    <div class="sub">Thêm công tắc ẩn/hiện trục 3D, giữ tùy chọn Tesseract (4D) và HiDPI cho lát cắt 2D. + Mới: ẩn/hiện nhãn w×h trong khung Kiến 2D.</div>
+  </header>
+
+  <div class="wrap">
+    <!-- Sidebar Controls -->
+    <div class="panel">
+      <h2>Thiết lập chuyển động & quan sát</h2>
+      <div class="controls">
+        <div class="row"><label>Vị trí X (cx)</label><input id="cx" type="range" min="-1.5" max="1.5" step="0.01" value="-1.0" /><span id="cxv">-1.00</span></div>
+        <div class="row"><label>Vị trí Y (cy)</label><input id="cy" type="range" min="-1.5" max="1.5" step="0.01" value="0.0" /><span id="cyv">0.00</span></div>
+        <div class="row"><label>Vị trí Z (cz)</label><input id="cz" type="range" min="-1.5" max="1.5" step="0.01" value="-1.0" /><span id="czv">-1.00</span></div>
+        <div class="row"><label>Cạnh lập phương (s)</label><input id="size" type="range" min="0.3" max="1.2" step="0.01" value="0.8" /><span id="sv">0.80</span></div>
+
+        <div class="row"><label>Hướng đường 1D (θ)</label><input id="theta" type="range" min="0" max="6.283" step="0.001" value="0.65" /><span id="thetav">0.65</span></div>
+        <div class="row"><label>Mặt phẳng 2D: z = h</label><input id="planeH" type="range" min="-1.5" max="1.5" step="0.01" value="0.0" /><span id="phv">0.00</span></div>
+
+        <div class="row"><label>Xoay Rx (độ)</label><input id="rx" type="range" min="-180" max="180" step="1" value="-25" /><span id="rxv">-25°</span></div>
+        <div class="row"><label>Xoay Ry (độ)</label><input id="ry" type="range" min="-180" max="180" step="1" value="30" /><span id="ryv">30°</span></div>
+        <div class="row"><label>Xoay Rz (độ)</label><input id="rz" type="range" min="-180" max="180" step="1" value="10" /><span id="rzv">10°</span></div>
+
+        <!-- Tesseract toggle -->
+        <div class="row">
+          <label>Chế độ 4D (tesseract)</label>
+          <label class="switch">
+            <input id="show4d" type="checkbox" />
+            <span class="slider"></span>
+          </label>
+          <span id="modev">Off</span>
+        </div>
+
+        <!-- Axes toggle -->
+        <div class="row">
+          <label>Hiện trục 3D</label>
+          <label class="switch">
+            <input id="axes" type="checkbox" checked />
+            <span class="slider"></span>
+          </label>
+          <span id="axesv">On</span>
+        </div>
+
+        <!-- NEW: w×h label toggle -->
+        <div class="row">
+          <label>Hiện nhãn w×h (2D)</label>
+          <label class="switch">
+            <input id="showwh" type="checkbox" checked />
+            <span class="slider"></span>
+          </label>
+          <span id="whv">On</span>
+        </div>
+
+        <div class="btns">
+          <button class="primary" id="play">▶ Play</button>
+          <button id="pause">⏸ Pause</button>
+          <button id="reset">↺ Reset</button>
+        </div>
+        <div class="hint">• Bật/Tắt trục 3D để quan sát rõ hình khối. Khi bật Tesseract (4D), cảnh hiển thị khung dây 4D→3D; lát cắt 1D/2D áp dụng cho chế độ lập phương. • Có thể ẩn nhãn w×h trong khung Kiến 2D.</div>
+      </div>
+      <div class="readout">
+        <div class="metric"><div class="k">Chiều dài 1D</div><div class="v" id="len1d">0.000</div></div>
+        <div class="metric"><div class="k">Diện tích lát cắt 2D</div><div class="v" id="area2d">0.000</div></div>
+        <div class="metric"><div class="k">Rộng lát cắt</div><div class="v" id="w2d">0.000</div></div>
+        <div class="metric"><div class="k">Cao lát cắt</div><div class="v" id="h2d">0.000</div></div>
+      </div>
+    </div>
+
+    <!-- Right side: 3D scene and Ant views -->
+    <div class="right">
+      <div class="card">
+        <div class="title">Cảnh 3D (chiếu trực giao)</div>
+        <canvas id="scene"></canvas>
+      </div>
+      <div class="card">
+        <div class="title">Góc nhìn của "con kiến"</div>
+        <div class="ant-views">
+          <div class="ant-card">
+            <h3>Kiến 1D (đường 1D)</h3>
+            <div class="ant1d">
+              <div class="line1d"></div>
+              <div class="seg" id="seg" style="left:50%; width:0px"></div>
+            </div>
+          </div>
+          <div class="ant-card">
+            <h3>Kiến 2D (mặt phẳng z = h)</h3>
+            <div class="ant2d">
+              <canvas id="slice2d"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Tip: xoay Ry/Rz và cho lập phương đi qua z=h để thấy "vuông → chữ nhật → bình hành". | <span id="tests">Đang chạy kiểm thử…</span>
+  </div>
+
+  <script>
+    // ====== Math helpers ======
+    const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+    const lerp=(a,b,t)=>a+(b-a)*t;
+    const d2r = d=> d*Math.PI/180;
+
+    // Scene / canvas refs
+    const cScene=document.getElementById('scene');
+    const ctxS=cScene.getContext('2d');
+    const c2=document.getElementById('slice2d');
+    const ctx2=c2.getContext('2d');
+
+    // Controls
+    const cxR=document.getElementById('cx');
+    const cyR=document.getElementById('cy');
+    const czR=document.getElementById('cz');
+    const sR =document.getElementById('size');
+    const thR=document.getElementById('theta');
+    const hR =document.getElementById('planeH');
+    const rxR=document.getElementById('rx');
+    const ryR=document.getElementById('ry');
+    const rzR=document.getElementById('rz');
+    const show4d=document.getElementById('show4d');
+    const showAxes=document.getElementById('axes');
+    const showWH=document.getElementById('showwh');
+
+    const cxV=document.getElementById('cxv');
+    const cyV=document.getElementById('cyv');
+    const czV=document.getElementById('czv');
+    const sV =document.getElementById('sv');
+    const thV=document.getElementById('thetav');
+    const phV=document.getElementById('phv');
+    const rxV=document.getElementById('rxv');
+    const ryV=document.getElementById('ryv');
+    const rzV=document.getElementById('rzv');
+    const modeV=document.getElementById('modev');
+    const axesV=document.getElementById('axesv');
+    const whV=document.getElementById('whv');
+
+    const len1d=document.getElementById('len1d');
+    const area2d=document.getElementById('area2d');
+    const w2d=document.getElementById('w2d');
+    const h2d=document.getElementById('h2d');
+    const segEl=document.getElementById('seg');
+
+    // Buttons
+    const btnPlay=document.getElementById('play');
+    const btnPause=document.getElementById('pause');
+    const btnReset=document.getElementById('reset');
+
+    // State
+    let W=0,H=0; let t=0; let playing=false;
+
+    // Resize canvases (3D)
+    function resizeScene(){
+      const rect=cScene.getBoundingClientRect();
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      cScene.width=rect.width*dpr; cScene.height=rect.height*dpr;
+      cScene.style.width=rect.width+'px'; cScene.style.height=rect.height+'px';
+      ctxS.setTransform(dpr,0,0,dpr,0,0);
+      W=rect.width; H=rect.height;
+    }
+    const roScene=new ResizeObserver(resizeScene); roScene.observe(cScene);
+
+    // Resize canvas (2D slice) for HiDPI crispness
+    function resizeSlice2D(){
+      const rect=c2.getBoundingClientRect();
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      c2.width = Math.max(1, Math.floor(rect.width * dpr));
+      c2.height= Math.max(1, Math.floor(rect.height* dpr));
+      ctx2.setTransform(dpr,0,0,dpr,0,0);
+      ctx2.imageSmoothingEnabled = true;
+    }
+    const ro2=new ResizeObserver(resizeSlice2D); ro2.observe(c2);
+
+    // Camera (orthographic) for viewing
+    let camYaw=0.7, camPitch=0.5;
+    function viewMatrix(){
+      const cy=Math.cos(camYaw), sy=Math.sin(camYaw);
+      const cp=Math.cos(camPitch), sp=Math.sin(camPitch);
+      return [ cy, sy*sp, sy*cp, 0,  cp,   -sp, -sy, cy*sp, cy*cp ];
+    }
+    function mul3(M,v){return [M[0]*v[0]+M[3]*v[1]+M[6]*v[2], M[1]*v[0]+M[4]*v[1]+M[7]*v[2], M[2]*v[0]+M[5]*v[1]+M[8]*v[2]]}
+    function project(p){ const s=150; return [ W*0.5 + p[0]*s, H*0.5 - p[1]*s ]; }
+
+    // Drag to orbit
+    let dragging=false, px=0, py=0;
+    cScene.addEventListener('mousedown',e=>{dragging=true; px=e.clientX; py=e.clientY});
+    addEventListener('mouseup',()=>dragging=false);
+    addEventListener('mousemove',e=>{
+      if(!dragging) return;
+      const dx=e.clientX-px, dy=e.clientY-py; px=e.clientX; py=e.clientY;
+      camYaw += dx*0.005; camPitch = clamp(camPitch + dy*0.005, -1.2, 1.2);
+    });
+
+    // Cube helpers (3D)
+    function cubeVertices(cx,cy,cz,s){
+      const h=s/2; const v=[]; for(let dx of [-h,h]) for(let dy of [-h,h]) for(let dz of [-h,h]) v.push([cx+dx, cy+dy, cz+dz]); return v; }
+    const edges=[[0,1],[0,2],[0,4],[1,3],[1,5],[2,3],[2,6],[3,7],[4,5],[4,6],[5,7],[6,7]];
+
+    function rotMatrix(rx,ry,rz){
+      const cx=Math.cos(rx), sx=Math.sin(rx); const cy=Math.cos(ry), sy=Math.sin(ry); const cz=Math.cos(rz), sz=Math.sin(rz);
+      const Rz=[cz,-sz,0, sz,cz,0, 0,0,1];
+      const Ry=[cy,0,sy, 0,1,0, -sy,0,cy];
+      const Rx=[1,0,0, 0, cx,-sx, 0, sx, cx];
+      function mul(A,B){
+        const C=new Array(9).fill(0);
+        for(let r=0;r<3;r++) for(let c=0;c<3;c++) C[r*3+c]=A[r*3+0]*B[0*3+c]+A[r*3+1]*B[1*3+c]+A[r*3+2]*B[2*3+c];
+        return C;
+      }
+      return mul(mul(Rz,Ry),Rx);
+    }
+    function mulMatVec(M,v){return [M[0]*v[0]+M[1]*v[1]+M[2]*v[2], M[3]*v[0]+M[4]*v[1]+M[5]*v[2], M[6]*v[0]+M[7]*v[1]+M[8]*v[2]]}
+    function transpose(M){return [M[0],M[3],M[6], M[1],M[4],M[7], M[2],M[5],M[8]]}
+
+    function rotatedVerts(cx,cy,cz,s, R){
+      const base=cubeVertices(0,0,0,s); // centered at origin
+      return base.map(p=>{ const q=mulMatVec(R,p); return [q[0]+cx, q[1]+cy, q[2]+cz]; });
+    }
+
+    // Line 1D (world XY)
+    function lineDir(theta){return [Math.cos(theta), Math.sin(theta), 0];}
+
+    // Slabs intersection in cube-local coords using inverse rotation
+    function lineCubeChordLen(cx,cy,cz,s, d, R){
+      const Rt = transpose(R);
+      const h=s/2; // AABB in local coords: [-h,h]^3
+      const o_local = mulMatVec(Rt, [-cx, -cy, -cz]);
+      const d_local = mulMatVec(Rt, d);
+      let tmin=-Infinity, tmax=Infinity;
+      for(let i=0;i<3;i++){
+        const o=o_local[i], di=d_local[i];
+        const min=-h, max=h;
+        if(Math.abs(di)<1e-9){ if(o<min || o>max) return 0; }
+        else{
+          const t1=(min-o)/di, t2=(max-o)/di; const tNear=Math.min(t1,t2), tFar=Math.max(t1,t2);
+          tmin=Math.max(tmin,tNear); tmax=Math.min(tmax,tFar); if(tmin>tmax) return 0;
+        }
+      }
+      const len=Math.max(0, tmax-tmin)*Math.hypot(...d);
+      return len;
+    }
+
+    // Plane z = h ∩ rotated cube → polygon in XY (world coords)
+    function sliceZPolygon(verts, h){
+      const pts=[]; const eps=1e-9;
+      for(const [a,b] of edges){
+        const A=verts[a], B=verts[b]; const za=A[2], zb=B[2];
+        if((h-za)*(h-zb)>0) continue; // same side
+        const dz=zb-za; if(Math.abs(dz)<eps){ if(Math.abs(h-za)<eps){ pts.push([A[0],A[1]]); pts.push([B[0],B[1]]);} continue;}
+        const t=(h-za)/dz; if(t>=0 && t<=1){ const x=A[0]+t*(B[0]-A[0]); const y=A[1]+t*(B[1]-A[1]); pts.push([x,y]); }
+      }
+      const out=[]; for(const p of pts){ if(!out.some(q=>Math.hypot(p[0]-q[0],p[1]-q[1])<1e-6)) out.push(p); }
+      if(out.length<3) return [];
+      const mx=out.reduce((a,p)=>a+p[0],0)/out.length; const my=out.reduce((a,p)=>a+p[1],0)/out.length;
+      out.sort((a,b)=>Math.atan2(a[1]-my,a[0]-mx)-Math.atan2(b[1]-my,b[0]-mx));
+      return out;
+    }
+    function polygonArea(poly){ let A=0; for(let i=0;i<poly.length;i++){const [x1,y1]=poly[i],[x2,y2]=poly[(i+1)%poly.length]; A+=x1*y2-x2*y1;} return Math.abs(A)/2; }
+
+    // ====== Tesseract (4D) helpers ======
+    const tEdges = []; // list of [i,j,dim] with dim ∈ {0:x,1:y,2:z,3:w}
+    (function buildTEdges(){
+      for(let i=0;i<16;i++){
+        for(let d=0; d<4; d++){
+          const j = i ^ (1<<d);
+          if(i < j) tEdges.push([i,j,d]);
+        }
+      }
+    })();
+    function idxToVec4(i, h){
+      const sx = (i&1)? +h : -h;
+      const sy = (i&2)? +h : -h;
+      const sz = (i&4)? +h : -h;
+      const sw = (i&8)? +h : -h;
+      return [sx, sy, sz, sw];
+    }
+    function rot4D(axw, ayw, azw){
+      const c1=Math.cos(axw), s1=Math.sin(axw);
+      const c2=Math.cos(ayw), s2=Math.sin(ayw);
+      const c3=Math.cos(azw), s3=Math.sin(azw);
+      let M = [1,0,0,0,  0,1,0,0,  0,0,1,0,  0,0,0,1];
+      function mul(A,B){
+        const C=new Array(16).fill(0);
+        for(let r=0;r<4;r++) for(let c=0;c<4;c++)
+          for(let k=0;k<4;k++) C[r*4+c]+=A[r*4+k]*B[k*4+c];
+        return C;
+      }
+      const Rxw=[ c1,0,0,-s1,  0,1,0,0,  0,0,1,0,  s1,0,0,c1 ];
+      const Ryw=[ 1,0,0,0,  0,c2,0,-s2,  0,0,1,0,  0,s2,0,c2 ];
+      const Rzw=[ 1,0,0,0,  0,1,0,0,  0,0,c3,-s3,  0,0,s3,c3 ];
+      M = mul(Rxw, mul(Ryw, Rzw));
+      return M;
+    }
+    function mul4(M,v){
+      return [
+        M[0]*v[0]+M[1]*v[1]+M[2]*v[2]+M[3]*v[3],
+        M[4]*v[0]+M[5]*v[1]+M[6]*v[2]+M[7]*v[3],
+        M[8]*v[0]+M[9]*v[1]+M[10]*v[2]+M[11]*v[3],
+        M[12]*v[0]+M[13]*v[1]+M[14]*v[2]+M[15]*v[3],
+      ];
+    }
+    function project4Dto3D(v4, d=2.5){
+      const w=v4[3];
+      const k = 1 / (1 - w/d);
+      return [ v4[0]*k, v4[1]*k, v4[2]*k ];
+    }
+
+    // ====== Rendering ======
+    function drawAxes3D(M){
+      const axes=[{v:mul3(M,[1,0,0]),c:'#ef4444'},{v:mul3(M,[0,1,0]),c:'#22c55e'},{v:mul3(M,[0,0,1]),c:'#38bdf8'}];
+      for(const ax of axes){
+        ctxS.beginPath(); const o=project(mul3(M,[0,0,0])); const p=project(ax.v);
+        ctxS.moveTo(o[0],o[1]); ctxS.lineTo(p[0],p[1]); ctxS.lineWidth=2; ctxS.strokeStyle=ax.c; ctxS.stroke();
+      }
+    }
+
+    function drawSceneCube(){
+      const M=viewMatrix();
+      const cx=+cxR.value, cy=+cyR.value, cz=+czR.value, s=+sR.value, h=+hR.value;
+      const R=rotMatrix(d2r(+rxR.value), d2r(+ryR.value), d2r(+rzR.value));
+      const verts=rotatedVerts(cx,cy,cz,s,R).map(p=>mul3(M,p));
+
+      ctxS.clearRect(0,0,W,H);
+      if(showAxes.checked) drawAxes3D(M);
+
+      // plane z=h
+      const P=[[-2,-2,h],[2,-2,h],[2,2,h],[-2,2,h]].map(p=>project(mul3(M,p)));
+      ctxS.beginPath(); ctxS.moveTo(P[0][0],P[0][1]); for(let i=1;i<P.length;i++) ctxS.lineTo(P[i][0],P[i][1]);
+      ctxS.closePath(); ctxS.fillStyle='rgba(56,189,248,0.10)'; ctxS.fill(); ctxS.strokeStyle='rgba(148,163,184,0.25)'; ctxS.lineWidth=1; ctxS.stroke();
+
+      // line 1D in XY
+      const d=[Math.cos(+thR.value), Math.sin(+thR.value), 0];
+      const p1=project(mul3(M,[d[0]*-2, d[1]*-2, 0])); const p2=project(mul3(M,[d[0]*2, d[1]*2, 0]));
+      ctxS.beginPath(); ctxS.moveTo(p1[0],p1[1]); ctxS.lineTo(p2[0],p2[1]); ctxS.strokeStyle='rgba(34,197,94,0.9)'; ctxS.lineWidth=2; ctxS.stroke();
+
+      // cube edges
+      ctxS.lineWidth=2; ctxS.strokeStyle='#cbd5e1';
+      for(const [a,b] of edges){ const A=project(verts[a]), B=project(verts[b]); ctxS.beginPath(); ctxS.moveTo(A[0],A[1]); ctxS.lineTo(B[0],B[1]); ctxS.stroke(); }
+
+      // intersection polygon
+      const worldVerts=rotatedVerts(cx,cy,cz,s,R);
+      const poly=sliceZPolygon(worldVerts,h).map(p=>project(mul3(M,[p[0],p[1],h])));
+      if(poly.length>=3){
+        ctxS.save();
+        ctxS.beginPath(); ctxS.moveTo(poly[0][0],poly[0][1]); for(let i=1;i<poly.length;i++) ctxS.lineTo(poly[i][0],poly[i][1]); ctxS.closePath();
+        ctxS.shadowColor='rgba(56,189,248,0.25)'; ctxS.shadowBlur=14; ctxS.fillStyle='rgba(34,197,94,0.22)'; ctxS.fill();
+        ctxS.shadowBlur=0; ctxS.strokeStyle='rgba(34,197,94,0.95)'; ctxS.lineWidth=2; ctxS.stroke();
+        ctxS.restore();
+      }
+    }
+
+    function drawSceneTesseract(){
+      const M=viewMatrix();
+      const s = +sR.value; const h = s/2;
+      const axw = (playing? t : 1.0) * 0.6;
+      const ayw = (playing? t : 1.0) * 0.4 + 0.3;
+      const azw = (playing? t : 1.0) * 0.3 + 0.6;
+      const R4 = rot4D(axw, ayw, azw);
+      const verts3 = [];
+      for(let i=0;i<16;i++){
+        const v4 = idxToVec4(i, h);
+        const r4 = mul4(R4, v4);
+        const p3 = project4Dto3D(r4, 2.5);
+        verts3.push(mul3(M, p3));
+      }
+
+      ctxS.clearRect(0,0,W,H);
+      if(showAxes.checked) drawAxes3D(M);
+
+      for(const [a,b,dim] of tEdges){
+        const A=project(verts3[a]); const B=project(verts3[b]);
+        ctxS.beginPath(); ctxS.moveTo(A[0],A[1]); ctxS.lineTo(B[0],B[1]);
+        ctxS.strokeStyle = (dim===3) ? 'rgba(56,189,248,0.95)' : 'rgba(203,213,225,0.95)';
+        ctxS.lineWidth = (dim===3) ? 2 : 1.5;
+        ctxS.stroke();
+      }
+      ctxS.beginPath();
+      const c=project(mul3(M,[0,0,0])); ctxS.arc(c[0],c[1],2,0,Math.PI*2);
+      ctxS.fillStyle='rgba(56,189,248,0.4)'; ctxS.fill();
+    }
+
+    // Ant views (1D & 2D)
+    function drawAntViews(){
+      if(show4d.checked){
+        len1d.textContent='—'; area2d.textContent='—'; w2d.textContent='—'; h2d.textContent='—';
+        const box = document.querySelector('.ant1d').getBoundingClientRect();
+        segEl.style.left=(box.width/2|0)+'px'; segEl.style.width='0px';
+
+        const cw = c2.clientWidth || 640;
+        const ch = c2.clientHeight || 220;
+        ctx2.clearRect(0,0,cw,ch);
+
+        ctx2.save();
+        ctx2.strokeStyle='rgba(148,163,184,0.22)'; ctx2.lineWidth=1;
+        for(let i=0;i<=10;i++){
+          const x=i*cw/10 + 0.5; const y=i*ch/10 + 0.5;
+          ctx2.beginPath(); ctx2.moveTo(x,0); ctx2.lineTo(x,ch); ctx2.stroke();
+          ctx2.beginPath(); ctx2.moveTo(0,y); ctx2.lineTo(cw,y); ctx2.stroke();
+        }
+        ctx2.restore();
+
+        ctx2.save();
+        ctx2.font='14px Inter, sans-serif';
+        ctx2.fillStyle='rgba(148,163,184,0.95)';
+        ctx2.fillText('Chế độ 4D (tesseract): lát cắt 2D tạm ẩn.', 12, 22);
+        ctx2.restore();
+        return;
+      }
+
+      // Normal cube mode
+      const cx=+cxR.value, cy=+cyR.value, cz=+czR.value, s=+sR.value, h=+hR.value, th=+thR.value;
+      const R=rotMatrix(d2r(+rxR.value), d2r(+ryR.value), d2r(+rzR.value));
+
+      // 1D chord length
+      const d=lineDir(th);
+      const L=lineCubeChordLen(cx,cy,cz,s,d,R);
+      len1d.textContent=L.toFixed(3);
+      const box = document.querySelector('.ant1d').getBoundingClientRect();
+      const minX=10, maxX=box.width-10; const full=maxX-minX; const norm=clamp(L/2, 0, 1);
+      const px= (minX + (full - full*norm)/2)|0; const segW=(full*norm)|0; segEl.style.left=px+"px"; segEl.style.width=segW+"px";
+
+      // 2D polygon at z=h
+      const cw = c2.clientWidth || 640;
+      const ch = c2.clientHeight || 220;
+      ctx2.clearRect(0,0,cw,ch);
+
+      // grid
+      ctx2.save();
+      ctx2.strokeStyle='rgba(148,163,184,0.22)'; ctx2.lineWidth=1;
+      for(let i=0;i<=10;i++){
+        const x=i*cw/10 + 0.5; const y=i*ch/10 + 0.5;
+        ctx2.beginPath(); ctx2.moveTo(x,0); ctx2.lineTo(x,ch); ctx2.stroke();
+        ctx2.beginPath(); ctx2.moveTo(0,y); ctx2.lineTo(cw,y); ctx2.stroke();
+      }
+      ctx2.restore();
+
+      const verts=rotatedVerts(cx,cy,cz,s,R);
+      const polyXY=sliceZPolygon(verts,h);
+      let area=0, polyW=0, polyH=0;
+      if(polyXY.length>=3){
+        area = polygonArea(polyXY);
+        let minx=Infinity, maxx=-Infinity, miny=Infinity, maxy=-Infinity;
+        for(const [x,y] of polyXY){ if(x<minx) minx=x; if(x>maxx) maxx=x; if(y<miny) miny=y; if(y>maxy) maxy=y; }
+        polyW=maxx-minx; polyH=maxy-miny;
+
+        const mapX=x=> (x+2)/4*cw;
+        const mapY=y=> (1-(y+2)/4)*ch;
+
+        ctx2.save();
+        // polygon
+        ctx2.beginPath(); ctx2.moveTo(mapX(polyXY[0][0]), mapY(polyXY[0][1]));
+        for(let i=1;i<polyXY.length;i++) ctx2.lineTo(mapX(polyXY[i][0]), mapY(polyXY[i][1]));
+        ctx2.closePath();
+        ctx2.shadowColor='rgba(56,189,248,0.25)'; ctx2.shadowBlur=14;
+        ctx2.fillStyle='rgba(56,189,248,0.22)'; ctx2.fill();
+        ctx2.shadowBlur=0;
+        ctx2.strokeStyle='rgba(56,189,248,0.95)'; ctx2.lineWidth=2; ctx2.stroke();
+
+        // AABB
+        ctx2.beginPath();
+        ctx2.rect(mapX(minx), mapY(maxy), (mapX(maxx)-mapX(minx)), (mapY(miny)-mapY(maxy)) );
+        ctx2.strokeStyle='rgba(234,179,8,0.95)'; ctx2.lineWidth=2; ctx2.stroke();
+
+        // label (optional)
+        if(showWH.checked){
+          const label = `w×h = ${polyW.toFixed(3)} × ${polyH.toFixed(3)}`;
+          const lx = mapX(minx)+8, ly = mapY(maxy)+18;
+          ctx2.font='12px Inter, sans-serif'; ctx2.textBaseline='middle';
+          const tw = ctx2.measureText(label).width + 12, th = 22;
+          ctx2.fillStyle='rgba(2,6,23,0.65)';
+          ctx2.strokeStyle='rgba(234,179,8,0.6)';
+          roundRect(ctx2, lx-6, ly-th/2, tw, th, 10);
+          ctx2.fill(); ctx2.stroke();
+          ctx2.fillStyle='rgba(234,179,8,0.95)';
+          ctx2.fillText(label, lx, ly);
+        }
+        ctx2.restore();
+      }
+      area2d.textContent=area.toFixed(3); w2d.textContent=polyW.toFixed(3); h2d.textContent=polyH.toFixed(3);
+    }
+
+    // Rounded rect helper for 2D label
+    function roundRect(ctx, x, y, w, h, r){
+      r = Math.min(r, w/2, h/2);
+      ctx.beginPath();
+      ctx.moveTo(x+r, y);
+      ctx.arcTo(x+w, y, x+w, y+h, r);
+      ctx.arcTo(x+w, y+h, x, y+h, r);
+      ctx.arcTo(x, y+h, x, y, r);
+      ctx.arcTo(x, y, x+w, y, r);
+      ctx.closePath();
+    }
+
+    function updateLabels(){
+      cxV.textContent=(+cxR.value).toFixed(2); cyV.textContent=(+cyR.value).toFixed(2); czV.textContent=(+czR.value).toFixed(2);
+      sV.textContent=(+sR.value).toFixed(2); thV.textContent=(+thR.value).toFixed(2); phV.textContent=(+hR.value).toFixed(2);
+      rxV.textContent= (+rxR.value|0)+"°"; ryV.textContent=(+ryR.value|0)+"°"; rzV.textContent=(+rzR.value|0)+"°";
+      modeV.textContent = show4d.checked ? 'On' : 'Off';
+      axesV.textContent = showAxes.checked ? 'On' : 'Off';
+      whV.textContent = showWH.checked ? 'On' : 'Off';
+    }
+
+    function drawScene(){
+      if(show4d.checked) drawSceneTesseract();
+      else drawSceneCube();
+    }
+
+    function tick(){
+      if(playing){
+        t+=0.016;
+        if(!show4d.checked){
+          czR.value = lerp(-1.5,1.5,(Math.sin(t*0.7)*0.5+0.5));
+          cxR.value = Math.sin(t*0.45)*1.0;
+          ryR.value = (Math.sin(t*0.6)*45).toFixed(1);
+          rzR.value = (Math.cos(t*0.5)*35).toFixed(1);
+        }
+      }
+      updateLabels(); drawScene(); drawAntViews(); requestAnimationFrame(tick);
+    }
+
+    btnPlay.onclick=()=>{playing=true};
+    btnPause.onclick=()=>{playing=false};
+    btnReset.onclick=()=>{playing=false; t=0;
+      cxR.value=-1.0; cyR.value=0; czR.value=-1.0; sR.value=0.8; thR.value=0.65; hR.value=0.0; rxR.value=-25; ryR.value=30; rzR.value=10;
+      show4d.checked=false; showAxes.checked=true; showWH.checked=true;
+      updateLabels();
+    };
+
+    for(const el of [cxR,cyR,czR,sR,thR,hR,rxR,ryR,rzR,show4d,showAxes,showWH]){
+      el.addEventListener('input',()=>{updateLabels(); drawScene(); drawAntViews();});
+      el.addEventListener('change',()=>{updateLabels(); drawScene(); drawAntViews();});
+    }
+
+    // ====== Minimal test suite (auto) ======
+    function approxEqual(a,b,eps=1e-6){ return Math.abs(a-b) <= eps; }
+    function runTests(){
+      const out=document.getElementById('tests');
+      let pass=0, fail=0; const report=(ok,msg)=>{ ok?pass++:fail++; console[ok? 'log':'error']((ok?'✔':'✘')+' '+msg); };
+
+      (function(){
+        const s=1.0; const L=lineCubeChordLen(0,0,0,s,[1,0,0], rotMatrix(0,0,0));
+        report(approxEqual(L,s), `Chord length X should be ${s}, got ${L}`);
+      })();
+
+      (function(){
+        const s=1.2; const verts=rotatedVerts(0,0,0,s, rotMatrix(0,0,0));
+        const poly=sliceZPolygon(verts,0);
+        const A=polygonArea(poly); const expect=s*s;
+        report(approxEqual(A,expect), `Slice area at z=0 should be ${expect}, got ${A}`);
+      })();
+
+      (function(){
+        const s=0.9; const R=rotMatrix(0,0,Math.PI/4); const verts=rotatedVerts(0,0,0,s,R);
+        const poly=sliceZPolygon(verts,0); const A=polygonArea(poly);
+        report(approxEqual(A,s*s), `Area should remain ${s*s} under Rz rotation, got ${A}`);
+      })();
+
+      out.textContent = fail===0 ? `Tests: ${pass} passed ✅` : `Tests: ${pass} passed, ${fail} failed ❌ (xem console)`;
+    }
+
+    // Init
+    resizeScene(); resizeSlice2D(); updateLabels(); drawScene(); drawAntViews(); runTests(); requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
